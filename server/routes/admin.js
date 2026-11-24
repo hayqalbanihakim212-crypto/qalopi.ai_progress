@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit'
 import * as store from '../store.js'
 import { env } from '../config.js'
 import { getSettings, SettingsSchema } from '../lib/settings.js'
+import { ContentSchemas, getContent, saveContent } from '../lib/content.js'
+import { FundingSchema, getFunding, saveFunding } from '../lib/funding.js'
 
 const r = Router()
 const COOKIE = 'qal_admin'
@@ -40,6 +42,33 @@ const auth = (req, res, next) => {
 }
 r.use(auth)
 r.get('/me', (req, res) => res.json({ ok: true }))
+
+r.get('/content', async (req, res, next) => {
+  try { res.json(await getContent()) } catch (e) { next(e) }
+})
+for (const [type, schema] of Object.entries(ContentSchemas)) {
+  r.put(`/content/${type}`, async (req, res, next) => {
+    const parsed = schema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid content', details: parsed.error.flatten() })
+    try {
+      const items = await saveContent(type, parsed.data)
+      await audit('content_update', `${type}: ${items.length} items`)
+      res.json({ items })
+    } catch (e) { next(e) }
+  })
+}
+r.get('/funding', async (req, res, next) => {
+  try { res.json(await getFunding()) } catch (e) { next(e) }
+})
+r.put('/funding', async (req, res, next) => {
+  const parsed = FundingSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid funding ledger', details: parsed.error.flatten() })
+  try {
+    const funding = await saveFunding(parsed.data)
+    await audit('funding_update', `${funding.entries.length} entries`)
+    res.json(funding)
+  } catch (e) { next(e) }
+})
 
 r.get('/submissions', async (req, res, next) => {
   try {

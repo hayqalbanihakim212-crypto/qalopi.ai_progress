@@ -3,6 +3,7 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import publicRoutes from './routes/public.js'
 import adminRoutes from './routes/admin.js'
+import contentRoutes from './routes/content.js'
 
 export function createApp() {
   const app = express()
@@ -12,6 +13,7 @@ export function createApp() {
   app.use(express.json({ limit: '20kb' }))
   app.use(cookieParser())
   app.use('/api/admin', adminRoutes)
+  app.use('/api', contentRoutes)
   app.use('/api', publicRoutes)
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }))
   // eslint-disable-next-line no-unused-vars
