@@ -6,6 +6,7 @@ import { env } from '../config.js'
 import { cached } from '../lib/cache.js'
 import { getSettings } from '../lib/settings.js'
 import { notify } from '../lib/notify.js'
+import { marketNumber, selectSolanaBasePair } from '../lib/market.js'
 
 const r = Router()
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -52,9 +53,22 @@ async function market() {
     const x = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + s.mint, { signal: AbortSignal.timeout(8000) })
     if (!x.ok) throw new Error('dex ' + x.status)
     const d = await x.json()
-    const p = (d.pairs || []).filter(q => q.chainId === 'solana').sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0]
+    const p = selectSolanaBasePair(d.pairs, s.mint)
     if (!p) return { available: false, reason: 'NO_MARKET_YET' }
-    return { available: true, provider: 'DexScreener', dex: p.dexId, pairAddress: p.pairAddress, pairUrl: p.url, price: p.priceUsd ? Number(p.priceUsd) : null, priceChange24h: p.priceChange?.h24 ?? null, liquidityUsd: p.liquidity?.usd ?? null, volume24hUsd: p.volume?.h24 ?? null, marketCapUsd: p.marketCap ?? null, fdvUsd: p.fdv ?? null, lastSynced: new Date().toISOString() }
+    return {
+      available: true,
+      provider: 'DexScreener',
+      dex: p.dexId,
+      pairAddress: p.pairAddress,
+      pairUrl: p.url,
+      price: marketNumber(p.priceUsd),
+      priceChange24h: marketNumber(p.priceChange?.h24),
+      liquidityUsd: marketNumber(p.liquidity?.usd),
+      volume24hUsd: marketNumber(p.volume?.h24),
+      marketCapUsd: marketNumber(p.marketCap),
+      fdvUsd: marketNumber(p.fdv),
+      lastSynced: new Date().toISOString(),
+    }
   })
 }
 r.get('/market', async (req, res) => {

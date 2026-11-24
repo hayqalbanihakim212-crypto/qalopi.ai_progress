@@ -7,7 +7,7 @@ const TFS = ['5m', '15m', '1h', '4h', '1d'] // only what GeckoTerminal actually 
 export default function Chart() {
   const L = useL()
   const [tf, setTf] = useState('1h')
-  const { data, error, loading } = useApi(`/market/ohlcv?tf=${tf}`)
+  const { data, error, loading } = useApi(`/market/ohlcv?tf=${tf}`, 60000)
   const c = data?.candles || []
   const W = 640, H = 240, w = W / Math.max(c.length, 1)
   const lo = Math.min(...c.map(x => x[3])), hi = Math.max(...c.map(x => x[2]))

@@ -8,10 +8,10 @@ import { usd, when } from '../lib/format.js'
 
 export default function Token() {
   const L = useL()
-  const { data: s } = useApi('/settings')
+  const { data: s } = useApi('/settings', 30000)
   const st = s || {}
   const live = st.launchStatus === 'LAUNCHED' && !!st.mint && ok(st.pumpfunUrl)
-  const { data: m, error: me } = useApi(live ? '/market' : null)
+  const { data: m, error: me } = useApi(live ? '/market' : null, 30000)
   const mk = m && m.available ? m : null
   const rows = [
     [L('Price', 'Harga'), mk && usd(mk.price)],
@@ -30,8 +30,10 @@ export default function Token() {
 ${rows.map(([k, v]) => html`<${Row} key=${k} k=${k}>${v || html`<${NA}/>`}<//>`)}
 ${me && html`<p className="text-sm mt-3" style=${{ color: 'var(--bad)' }}>${L('Market data is temporarily unavailable.', 'Data pasar sedang tidak tersedia.')}</p>`}
 ${mk && html`<p className="mut text-xs mt-2">${L('Source', 'Sumber')}: ${mk.provider} · ${L('last synced', 'sinkron terakhir')} ${when(mk.lastSynced)}</p>`}
+${mk?.pairUrl && html`<p className="mut text-xs mt-1"><a className="underline" href=${mk.pairUrl} rel="noopener noreferrer" target="_blank">${L('View live market pair', 'Lihat pasangan market')}</a></p>`}
 <div className="mt-6">${live ? html`<a className="btn" href=${st.pumpfunUrl} rel="noopener noreferrer" target="_blank">${L('Open on Pump.fun', 'Buka di Pump.fun')}</a>` : html`<button className="btn" disabled>${L('Buy $QAL (unavailable until the mint is verified)', 'Beli $QAL (tidak tersedia sampai mint terverifikasi)')}</button>`}</div>
 ${live && mk && html`<${Chart}/>`}
+${live && m && !mk && html`<p className="mut text-sm mt-3">${L('No verified public market pair was found for this mint yet. Prices will appear when a real Solana pool is indexed.', 'Pasangan pasar publik yang terverifikasi untuk mint ini belum ditemukan. Harga akan tampil setelah pool Solana nyata terindeks.')}</p>`}
 ${!live && html`<p className="mut text-sm mt-3">${L('Charts appear only when real market data from a documented provider is connected.', 'Grafik hanya muncul setelah data pasar nyata dari penyedia terdokumentasi terhubung.')}</p>`}</div>
 <div><h3 className="serif text-2xl font-semibold">${L('Buying $QAL does not give you', 'Membeli $QAL tidak memberi Anda')}</h3>
 <ul className="mt-3 mut list-disc pl-5 space-y-1">${[['shares in QALOPI.AI', 'saham QALOPI.AI'], ['ownership of intellectual property', 'kepemilikan kekayaan intelektual'], ['a right to company revenue', 'hak atas pendapatan perusahaan'], ['fixed returns or any guarantee of profit', 'imbal hasil tetap atau jaminan keuntungan'], ['rights to a future native coin', 'hak atas koin native di masa depan']].map(x => html`<li key=${x[0]}>${L(x[0], x[1])}</li>`)}</ul>
