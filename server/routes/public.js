@@ -11,7 +11,13 @@ import { marketNumber, selectSolanaBasePair } from '../lib/market.js'
 const r = Router()
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 
-r.get('/health', (req, res) => res.json({ ok: true, storage: store.storage(), time: new Date().toISOString() }))
+r.get('/health', async (req, res) => {
+  try { res.json({ ok: true, ...await store.check(), time: new Date().toISOString() }) }
+  catch (e) {
+    console.error('Storage health check failed:', e)
+    res.status(503).json({ ok: false, storage: store.storage(), database: 'unavailable', time: new Date().toISOString() })
+  }
+})
 
 r.get('/settings', async (req, res, next) => {
   try { res.json(await getSettings()) } catch (e) { next(e) }

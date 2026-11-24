@@ -29,6 +29,11 @@ export async function get(key, def) {
   if (env().databaseUrl) { const r = await (await pg()).query('select value from kv where key=$1', [key]); return r.rows[0] ? r.rows[0].value : def }
   return (await readAll())[key] ?? def
 }
+export async function check() {
+  if (!env().databaseUrl) return { storage: storage(), database: 'not-configured' }
+  await (await pg()).query('select 1')
+  return { storage: 'postgres', database: 'connected' }
+}
 async function set(key, val) {
   if (env().databaseUrl) { await (await pg()).query('insert into kv(key,value) values($1,$2) on conflict(key) do update set value=excluded.value', [key, JSON.stringify(val)]); return }
   await fs.mkdir(dir(), { recursive: true })

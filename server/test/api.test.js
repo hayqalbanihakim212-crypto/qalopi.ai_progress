@@ -15,7 +15,10 @@ const call = (p, o = {}) => fetch(base + p, { ...o, headers: { 'Content-Type': '
 const valid = { type: 'suggestion', subject: 'Docs idea', message: 'Please add a glossary page.', consent: true }
 
 test('health and default settings', async () => {
-  assert.equal((await (await call('/api/health')).json()).ok, true)
+  const health = await (await call('/api/health')).json()
+  assert.equal(health.ok, true)
+  assert.equal(health.storage, 'file')
+  assert.equal(health.database, 'not-configured')
   assert.equal((await (await call('/api/settings')).json()).launchStatus, 'NOT_LAUNCHED')
 })
 test('github unconfigured returns configured:false, no fake data', async () => {

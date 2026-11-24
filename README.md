@@ -27,9 +27,9 @@ npm run build             # production build
 
 ## Deploy to Vercel
 1. Push to a new GitHub repo (`qalopi-public-hub`) and import it in Vercel (framework: Vite).
-2. In Supabase, open **Connect** and obtain a PostgreSQL connection URI suitable for serverless use. Put it in Vercel as the server-only `DATABASE_URL`. The Supabase project HTTPS URL and publishable key are not PostgreSQL connection credentials; this backend uses `pg`. Never add database credentials to `VITE_*` variables or commit them.
+2. In Supabase, open **Connect** and choose **Transaction pooler** for Vercel serverless functions. Copy its PostgreSQL URI (port `6543`) to Vercel as the server-only `DATABASE_URL`; use the exact host and username shown by Supabase. A direct database URI can time out from an IPv4-only runtime. The Supabase project HTTPS URL and publishable key are not PostgreSQL connection credentials; this backend uses `pg`. Never add database credentials to `VITE_*` variables or commit them.
 3. Set `AUTH_SECRET` (at least 32 characters), `ADMIN_EMAIL`, and `ADMIN_PASSWORD_HASH`; optionally set `GITHUB_OWNER`, `GITHUB_REPOSITORY`, `GITHUB_TOKEN`, `EMAIL_API_KEY`, `NOTIFY_EMAIL`, and `FROM_EMAIL`. Use the owner and repository names only, not GitHub URLs.
-4. Deploy, then open `/api/health`. It must show `"storage":"postgres"`; `ephemeral-file` means submissions and admin content will be lost between serverless instances.
+4. Deploy, then open `/api/health`. It must show `"storage":"postgres"` and `"database":"connected"`. A 503 or `"database":"unavailable"` means the Vercel function cannot reach PostgreSQL; check that `DATABASE_URL` uses the Supabase Transaction pooler and redeploy after changing it. `ephemeral-file` means submissions and admin content will be lost between serverless instances.
 5. Custom domain: Vercel > Settings > Domains. Rollback: Vercel > Deployments > promote a previous deployment.
 Check that your Vercel plan's terms allow public, commercial and fundraising use.
 
