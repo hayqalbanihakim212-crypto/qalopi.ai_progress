@@ -15,16 +15,20 @@ const call = (p, o = {}) => fetch(base + p, { ...o, headers: { 'Content-Type': '
 const valid = { type: 'suggestion', subject: 'Docs idea', message: 'Please add a glossary page.', consent: true }
 
 test('health and default settings', async () => {
-  assert.equal((await (await call('/api/health')).json()).ok, true)
-  assert.equal((await (await call('/api/settings')).json()).launchStatus, 'NOT_LAUNCHED')
+  const health = await (await call('/api/health')).json()
+  assert.equal(health.ok, true)
+  assert.equal(health.storage, 'file')
+  assert.equal(health.database, 'not-configured')
+  const settings = await (await call('/api/settings')).json()
+  assert.equal(settings.launchStatus, 'LAUNCHED')
+  assert.equal(settings.mint, 'AGVeuGdPYePghgF6evN8C8mceNzDVT4GVZdcPRDfpump')
+  assert.equal(settings.pumpfunUrl, 'https://pump.fun/coin/AGVeuGdPYePghgF6evN8C8mceNzDVT4GVZdcPRDfpump')
 })
 test('github unconfigured returns configured:false, no fake data', async () => {
   assert.deepEqual(await (await call('/api/github')).json(), { configured: false })
 })
-test('market unavailable before launch; chart rejects bad timeframe', async () => {
-  assert.equal((await (await call('/api/market')).json()).available, false)
+test('chart and trades reject bad input without touching the network', async () => {
   assert.equal((await call('/api/market/ohlcv?tf=1w')).status, 400)
-  assert.deepEqual((await (await call('/api/market/ohlcv?tf=1h')).json()).candles, [])
 })
 test('submission validation', async () => {
   assert.equal((await call('/api/submissions', { method: 'POST', body: { ...valid, consent: false } })).status, 400)
@@ -54,6 +58,11 @@ test('admin login, list, status change, settings validation and update', async (
   assert.equal((await call('/api/admin/settings', { method: 'PUT', body: { launchStatus: 'LAUNCHED', mint: '11111111111111111111111111111111', pumpfunUrl: 'https://evil.example/x' } })).status, 400)
   assert.equal((await call('/api/admin/settings', { method: 'PUT', body: { launchStatus: 'NOT_LAUNCHED', mint: '', pumpfunUrl: '' } })).status, 200)
   assert.ok((await (await call('/api/admin/audit')).json()).items.length >= 3)
+})
+test('market, chart and trades are unavailable when the token is not launched (no fake data)', async () => {
+  assert.equal((await (await call('/api/market')).json()).available, false)
+  assert.deepEqual((await (await call('/api/market/ohlcv?tf=1h')).json()).candles, [])
+  assert.deepEqual((await (await call('/api/market/trades')).json()).trades, [])
 })
 test('cross-origin state change is blocked', async () => {
   const r = await call('/api/admin/logout', { method: 'POST', headers: { Origin: 'https://evil.example' } })

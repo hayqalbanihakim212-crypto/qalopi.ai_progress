@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { html } from '../lib/html.js'
 import { api } from '../lib/api.js'
 import { when } from '../lib/format.js'
+import { FUND_CURRENCIES } from '../config/site.js'
 
 const STATUSES = ['new', 'reviewing', 'resolved', 'spam']
 const CONTENT_FIELDS = {
@@ -48,7 +49,7 @@ function FundingEditor({ funding, onSave, message, setMessage }) {
     <p className="mut text-sm">Only enter amounts supported by the linked transaction or receipt. Values in different currencies are shown separately.</p>
     <fieldset className="border ln p-4 space-y-3"><legend className="px-2">Funding target (optional)</legend>
       <label className="block text-sm">Amount<input className="fld mt-1" type="number" min="0" step="any" value=${target.amount ?? ''} onChange=${e => onSave({ ...data, target: e.target.value ? { ...target, amount: Number(e.target.value) } : null }, false)}/></label>
-      <label className="block text-sm">Currency<select className="fld mt-1" value=${target.currency} onChange=${e => onSave({ ...data, target: target.amount ? { ...target, currency: e.target.value } : null }, false)}>${['USD', 'USDC', 'SOL'].map(c => html`<option key=${c}>${c}</option>`)}</select></label>
+      <label className="block text-sm">Currency<select className="fld mt-1" value=${target.currency} onChange=${e => onSave({ ...data, target: target.amount ? { ...target, currency: e.target.value } : null }, false)}>${FUND_CURRENCIES.map(c => html`<option key=${c}>${c}</option>`)}</select></label>
     </fieldset>
     ${data.entries.map((entry, index) => html`<article key=${entry.id} className="border ln p-4 space-y-3">
       <div className="flex justify-between"><strong>${entry.date} · ${entry.direction}</strong><button className="underline text-sm" onClick=${() => onSave({ ...data, entries: data.entries.filter((_, i) => i !== index) }, false)}>Remove</button></div>
@@ -56,7 +57,7 @@ function FundingEditor({ funding, onSave, message, setMessage }) {
         <label className="block text-sm">Date<input className="fld mt-1" type="date" value=${entry.date} onChange=${e => updateEntry(index, 'date', e.target.value)}/></label>
         <label className="block text-sm">Direction<select className="fld mt-1" value=${entry.direction} onChange=${e => updateEntry(index, 'direction', e.target.value)}><option value="received">Received</option><option value="spent">Spent</option></select></label>
         <label className="block text-sm">Amount<input className="fld mt-1" type="number" min="0" step="any" value=${entry.amount} onChange=${e => updateEntry(index, 'amount', e.target.value ? Number(e.target.value) : '')}/></label>
-        <label className="block text-sm">Currency<select className="fld mt-1" value=${entry.currency} onChange=${e => updateEntry(index, 'currency', e.target.value)}>${['USD', 'USDC', 'SOL'].map(c => html`<option key=${c}>${c}</option>`)}</select></label>
+        <label className="block text-sm">Currency<select className="fld mt-1" value=${entry.currency} onChange=${e => updateEntry(index, 'currency', e.target.value)}>${FUND_CURRENCIES.map(c => html`<option key=${c}>${c}</option>`)}</select></label>
         <label className="block text-sm">Description<input className="fld mt-1" value=${entry.description} onChange=${e => updateEntry(index, 'description', e.target.value)}/></label>
         <label className="block text-sm">Source<input className="fld mt-1" value=${entry.source} onChange=${e => updateEntry(index, 'source', e.target.value)}/></label>
       </div>

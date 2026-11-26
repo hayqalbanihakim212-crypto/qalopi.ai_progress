@@ -3,6 +3,7 @@ import { html } from '../lib/html.js'
 import { useL } from '../i18n/LangContext.js'
 import { Sec, Row, NA, Badge } from '../components/ui.js'
 import { CFG, ok } from '../config/site.js'
+import { useApi } from '../lib/useApi.js'
 import { TECH } from '../data/technology.js'
 import { ROAD } from '../data/roadmap.js'
 import { ROLES, PARTN } from '../data/join.js'
@@ -11,6 +12,8 @@ import coin from '../assets/coin.jpg'
 
 export default function Hero() {
   const L = useL()
+  const { data: st } = useApi('/settings')
+  const tokenState = !st ? '…' : st.launchStatus === 'LAUNCHED' && st.mint ? L('Live on Pump.fun', 'Live di Pump.fun') : L('Not launched', 'Belum diluncurkan')
   return html`<${Fragment}><section className="max-w-6xl mx-auto px-5 pt-14 md:pt-24 pb-16 grid md:grid-cols-[1.4fr_1fr] gap-12 items-center">
 <div>
 <p className="gold font-semibold">${L('Independent research & development','Riset & pengembangan independen')}</p>
@@ -20,7 +23,7 @@ export default function Hero() {
 <div className="flex justify-center"><div className="ring rounded-full p-[3px] w-64 h-64 md:w-80 md:h-80"><img src=${coin} alt="QAL coin mark" className="rounded-full w-full h-full object-cover" style=${{border:'6px solid var(--bg)'}}/></div></div></section>
 
 <div className="border-y ln" style=${{background:'var(--bg2)'}}><dl className="max-w-6xl mx-auto px-5 py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-${[[L('Engineering phase','Fase engineering'),'V2.6'],[L('Full release','Rilis penuh'),'Blocked'],[L('AI component','Komponen AI'),'ANANKE'],[L('Community token $QAL','Token komunitas $QAL'),L('Not launched','Belum diluncurkan')]].map(([k,v])=>html`<div key=${k}><dt className="mut text-sm">${k}</dt><dd className="serif text-2xl font-semibold gold">${v}</dd></div>`)}</dl></div>
+${[[L('Engineering phase','Fase engineering'),'V2.6'],[L('Full release','Rilis penuh'),'Blocked'],[L('AI component','Komponen AI'),'ANANKE'],[L('Community token $'+CFG.tokenSymbol,'Token komunitas $'+CFG.tokenSymbol),tokenState]].map(([k,v])=>html`<div key=${k}><dt className="mut text-sm">${k}</dt><dd className="serif text-2xl font-semibold gold">${v}</dd></div>`)}</dl></div>
 
 <//>`
 }

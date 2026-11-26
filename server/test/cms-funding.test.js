@@ -75,3 +75,12 @@ test('funding ledger requires evidence, validates values, and is public after sa
   assert.equal((await call('/api/admin/funding', { method: 'PUT', body: funding })).status, 200)
   assert.deepEqual(await (await call('/api/funding')).json(), funding)
 })
+
+test('funding ledger accepts the donation currencies and rejects unknown ones', async () => {
+  const { FUND_CURRENCIES } = await import('../../src/config/site.js')
+  const entry = currency => ({ id: 'c-' + currency, date: '2026-01-02', direction: 'received', amount: 0.5, currency, description: 'Documented donation', source: 'On-chain', evidenceUrl: 'https://example.org/tx' })
+  assert.deepEqual(FUND_CURRENCIES, ['USD', 'USDC', 'SOL', 'BTC', 'BNB', 'ETH', 'MON'])
+  const all = { target: null, entries: FUND_CURRENCIES.map(entry) }
+  assert.equal((await call('/api/admin/funding', { method: 'PUT', body: all })).status, 200)
+  assert.equal((await call('/api/admin/funding', { method: 'PUT', body: { target: null, entries: [entry('DOGE')] } })).status, 400)
+})

@@ -2,7 +2,8 @@ import { z } from 'zod'
 import * as store from '../store.js'
 
 const amount = z.number().finite().positive().max(1_000_000_000_000)
-const currency = z.enum(['USD', 'USDC', 'SOL'])
+// Keep in sync with FUND_CURRENCIES in src/config/site.js (a test enforces it).
+const currency = z.enum(['USD', 'USDC', 'SOL', 'BTC', 'BNB', 'ETH', 'MON'])
 const httpsUrl = z.string().url().refine(value => value.startsWith('https://'), 'Use an HTTPS URL')
 
 export const FundingSchema = z.object({

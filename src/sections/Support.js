@@ -3,7 +3,7 @@ import { html } from '../lib/html.js'
 import { api } from '../lib/api.js'
 import { useL } from '../i18n/LangContext.js'
 import { Sec, Row, NA, Badge } from '../components/ui.js'
-import { CFG, ok } from '../config/site.js'
+import Donate from '../components/Donate.js'
 
 export default function Support() {
   const L = useL()
@@ -19,10 +19,7 @@ ${funding?.target && html`<${Row} k=${L('Funding target','Target dana')}>${forma
 ${currencies.map(currency=>{const entries=funding.entries.filter(entry=>entry.currency===currency);const received=entries.filter(entry=>entry.direction==='received').reduce((sum,entry)=>sum+entry.amount,0);const spent=entries.filter(entry=>entry.direction==='spent').reduce((sum,entry)=>sum+entry.amount,0);return html`<div key=${currency}><${Row} k=${L('Verified funds received','Dana terverifikasi diterima')}>${format(received,currency)}<//><${Row} k=${L('Documented expenses','Pengeluaran terdokumentasi')}>${format(spent,currency)}<//><${Row} k=${L('Recorded balance','Saldo tercatat')}>${format(received-spent,currency)}<//></div>`})}
 ${funding && funding.entries.length > 0 && html`<div className="mt-5"><h4 className="font-semibold mb-2">${L('Public ledger','Buku besar publik')}</h4>${funding.entries.map(entry=>html`<article key=${entry.id} className="border-b ln py-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><strong>${entry.date} · ${entry.direction === 'received' ? L('Received','Diterima') : L('Spent','Dibelanjakan')}</strong><strong>${format(entry.amount,entry.currency)}</strong></div><p className="mut">${entry.description} · ${entry.source}</p><a className="underline" href=${entry.evidenceUrl} target="_blank" rel="noopener noreferrer">${L('View transaction or receipt evidence','Lihat bukti transaksi atau tanda terima')}</a></article>`)}</div>`}
 <p className="mut text-sm mt-3">${L('Only documented entries are included. Token market value is never counted as funding. Totals are not combined across currencies.','Hanya catatan dengan bukti yang disertakan. Nilai pasar token tidak dihitung sebagai pendanaan. Total mata uang tidak digabung.')}</p></div>
-<div><h3 className="serif text-2xl font-semibold mb-2">${L('Donation addresses','Alamat donasi')}</h3>
-<${Row} k="SOL">${CFG.donateSol?html`<span className="break-all text-sm">${CFG.donateSol}</span>`:L('Not configured','Belum dikonfigurasi')}<//>
-<${Row} k="USDC">${CFG.donateUsdc?html`<span className="break-all text-sm">${CFG.donateUsdc}</span>`:L('Not configured','Belum dikonfigurasi')}<//>
-<p className="mut text-sm mt-3">${L('Only send to an address published here after it is configured.','Kirim hanya ke alamat yang dipublikasikan di sini setelah dikonfigurasi.')}</p></div></div><//>
+<${Donate}/></div><//>
 
 <//>`
 }

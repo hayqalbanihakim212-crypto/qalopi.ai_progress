@@ -14,7 +14,13 @@ async function pg() {
     const { default: pgm } = await import('pg')
     pool = new pgm.Pool({ connectionString: env().databaseUrl, ssl: /localhost|127\.0\.0\.1/.test(env().databaseUrl) ? false : { rejectUnauthorized: false }, max: 3 })
   }
-  if (!ready) { await pool.query('create table if not exists kv(key text primary key, value jsonb not null)'); ready = true }
+  if (!ready) {
+    await pool.query('create table if not exists kv(key text primary key, value jsonb not null)')
+    // Supabase exposes public tables through its REST API. RLS with no policies blocks that path;
+    // this server connects as the table owner, which is not affected.
+    await pool.query('alter table kv enable row level security')
+    ready = true
+  }
   return pool
 }
 const readAll = async () => { try { return JSON.parse(await fs.readFile(file(), 'utf8')) } catch { return {} } }
@@ -22,6 +28,11 @@ const readAll = async () => { try { return JSON.parse(await fs.readFile(file(), 
 export async function get(key, def) {
   if (env().databaseUrl) { const r = await (await pg()).query('select value from kv where key=$1', [key]); return r.rows[0] ? r.rows[0].value : def }
   return (await readAll())[key] ?? def
+}
+export async function check() {
+  if (!env().databaseUrl) return { storage: storage(), database: 'not-configured' }
+  await (await pg()).query('select 1')
+  return { storage: 'postgres', database: 'connected' }
 }
 async function set(key, val) {
   if (env().databaseUrl) { await (await pg()).query('insert into kv(key,value) values($1,$2) on conflict(key) do update set value=excluded.value', [key, JSON.stringify(val)]); return }

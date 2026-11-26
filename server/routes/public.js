@@ -6,12 +6,18 @@ import { env } from '../config.js'
 import { cached } from '../lib/cache.js'
 import { getSettings } from '../lib/settings.js'
 import { notify } from '../lib/notify.js'
-import { marketNumber, selectSolanaBasePair } from '../lib/market.js'
+import { geckoPoolToMarket, marketNumber, normalizeTrades, selectGeckoPool, selectSolanaBasePair } from '../lib/market.js'
 
 const r = Router()
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 
-r.get('/health', (req, res) => res.json({ ok: true, storage: store.storage(), time: new Date().toISOString() }))
+r.get('/health', async (req, res) => {
+  try { res.json({ ok: true, ...await store.check(), time: new Date().toISOString() }) }
+  catch (e) {
+    console.error('Storage health check failed:', e)
+    res.status(503).json({ ok: false, storage: store.storage(), database: 'unavailable', time: new Date().toISOString() })
+  }
+})
 
 r.get('/settings', async (req, res, next) => {
   try { res.json(await getSettings()) } catch (e) { next(e) }
@@ -45,30 +51,52 @@ r.get('/github', async (req, res) => {
   } catch { res.status(502).json({ error: 'GitHub data is temporarily unavailable.' }) }
 })
 
-// ---- Market data (DexScreener + GeckoTerminal). No dummy data: unavailable until launched. ----
+// ---- Market data (DexScreener, GeckoTerminal fallback). No dummy data: unavailable until a real pair exists. ----
+async function getJson(url) {
+  const x = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } })
+  if (!x.ok) throw new Error(`${new URL(url).host} ${x.status}`)
+  return x.json()
+}
+async function dexMarket(mint) {
+  const d = await getJson('https://api.dexscreener.com/latest/dex/tokens/' + encodeURIComponent(mint))
+  const p = selectSolanaBasePair(d.pairs, mint)
+  if (!p) return null
+  return {
+    available: true,
+    provider: 'DexScreener',
+    dex: p.dexId,
+    pairAddress: p.pairAddress,
+    pairUrl: p.url,
+    price: marketNumber(p.priceUsd),
+    priceChange24h: marketNumber(p.priceChange?.h24),
+    liquidityUsd: marketNumber(p.liquidity?.usd),
+    volume24hUsd: marketNumber(p.volume?.h24),
+    marketCapUsd: marketNumber(p.marketCap),
+    fdvUsd: marketNumber(p.fdv),
+    lastSynced: new Date().toISOString(),
+  }
+}
+async function geckoMarket(mint) {
+  const d = await getJson(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${encodeURIComponent(mint)}/pools`)
+  const pool = selectGeckoPool(d?.data, mint)
+  return pool ? geckoPoolToMarket(pool) : null
+}
 async function market() {
   const s = await getSettings()
   if (s.launchStatus !== 'LAUNCHED' || !s.mint) return { available: false, reason: 'NOT_LAUNCHED' }
   return cached('mkt:' + s.mint, 30000, async () => {
-    const x = await fetch('https://api.dexscreener.com/latest/dex/tokens/' + s.mint, { signal: AbortSignal.timeout(8000) })
-    if (!x.ok) throw new Error('dex ' + x.status)
-    const d = await x.json()
-    const p = selectSolanaBasePair(d.pairs, s.mint)
-    if (!p) return { available: false, reason: 'NO_MARKET_YET' }
-    return {
-      available: true,
-      provider: 'DexScreener',
-      dex: p.dexId,
-      pairAddress: p.pairAddress,
-      pairUrl: p.url,
-      price: marketNumber(p.priceUsd),
-      priceChange24h: marketNumber(p.priceChange?.h24),
-      liquidityUsd: marketNumber(p.liquidity?.usd),
-      volume24hUsd: marketNumber(p.volume?.h24),
-      marketCapUsd: marketNumber(p.marketCap),
-      fdvUsd: marketNumber(p.fdv),
-      lastSynced: new Date().toISOString(),
+    // A brand-new Pump.fun coin may be indexed by one provider before the other, so ask both.
+    // Only when neither provider answers is this an error; "answered, no pair" is NO_MARKET_YET.
+    let answered = false, lastError = null
+    for (const source of [dexMarket, geckoMarket]) {
+      try {
+        const m = await source(s.mint)
+        answered = true
+        if (m) return { ...m, mint: s.mint }
+      } catch (e) { lastError = e }
     }
+    if (!answered) throw lastError || new Error('no market provider answered')
+    return { available: false, reason: 'NO_MARKET_YET' }
   })
 }
 r.get('/market', async (req, res) => {
@@ -82,13 +110,25 @@ r.get('/market/ohlcv', async (req, res) => {
     const m = await market()
     if (!m.available || !B58.test(m.pairAddress || '')) return res.json({ available: false, candles: [] })
     const candles = await cached(`ohlcv:${m.pairAddress}:${req.query.tf}`, 60000, async () => {
-      const x = await fetch(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${m.pairAddress}/ohlcv/${tf[0]}?aggregate=${tf[1]}&limit=120`, { signal: AbortSignal.timeout(8000), headers: { Accept: 'application/json' } })
-      if (!x.ok) throw new Error('gt ' + x.status)
-      const list = (await x.json())?.data?.attributes?.ohlcv_list || []
-      return list.map(c => c.map(Number)).sort((a, b) => a[0] - b[0])
+      // include_empty_intervals keeps the time axis continuous for thinly traded coins (flat candles = no trades).
+      const d = await getJson(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${m.pairAddress}/ohlcv/${tf[0]}?aggregate=${tf[1]}&limit=120&include_empty_intervals=true`)
+      const list = d?.data?.attributes?.ohlcv_list || []
+      return list.map(c => c.map(Number)).filter(c => c.length >= 5 && c.every(Number.isFinite)).sort((a, b) => a[0] - b[0])
     })
     res.json({ available: true, provider: 'GeckoTerminal', tf: req.query.tf, candles })
   } catch { res.status(502).json({ error: 'Chart data is temporarily unavailable.' }) }
+})
+// Real on-chain swaps for the token's pool (provider window: last 24 hours). Empty means nobody traded.
+r.get('/market/trades', async (req, res) => {
+  try {
+    const m = await market()
+    if (!m.available || !B58.test(m.pairAddress || '') || !m.mint) return res.json({ available: false, trades: [] })
+    const out = await cached(`trades:${m.pairAddress}`, 20000, async () => {
+      const d = await getJson(`https://api.geckoterminal.com/api/v2/networks/solana/pools/${m.pairAddress}/trades`)
+      return { trades: normalizeTrades(d?.data, m.mint), lastSynced: new Date().toISOString() }
+    })
+    res.json({ available: true, provider: 'GeckoTerminal', windowHours: 24, mint: m.mint, ...out })
+  } catch { res.status(502).json({ error: 'Transaction data is temporarily unavailable.' }) }
 })
 
 // ---- Submissions (feedback, careers, partnerships, investment, security) ----

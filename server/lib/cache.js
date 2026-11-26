@@ -6,3 +6,4 @@ export async function cached(key, ttlMs, fn) {
   m.set(key, { v, exp: Date.now() + ttlMs })
   return v
 }
+export const clearCache = () => m.clear() // for tests

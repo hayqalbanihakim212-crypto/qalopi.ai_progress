@@ -1,6 +1,15 @@
 import { z } from 'zod'
 import * as store from '../store.js'
-export const DEFAULTS = { launchStatus: 'NOT_LAUNCHED', mint: '', pumpfunUrl: '' }
+
+// Official community token (Pump.fun, Solana). Used until /admin saves its own settings;
+// anything saved in /admin takes precedence over these defaults.
+export const TOKEN = {
+  name: 'qalopi',
+  symbol: 'QLPO',
+  mint: 'AGVeuGdPYePghgF6evN8C8mceNzDVT4GVZdcPRDfpump',
+  pumpfunUrl: 'https://pump.fun/coin/AGVeuGdPYePghgF6evN8C8mceNzDVT4GVZdcPRDfpump',
+}
+export const DEFAULTS = { launchStatus: 'LAUNCHED', mint: TOKEN.mint, pumpfunUrl: TOKEN.pumpfunUrl }
 export const getSettings = async () => ({ ...DEFAULTS, ...(await store.get('settings', {})) })
 export const SettingsSchema = z.object({
   launchStatus: z.enum(['NOT_LAUNCHED', 'LAUNCHED']),
